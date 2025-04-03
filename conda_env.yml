@@ -1,0 +1,10 @@
+name: dacy_env_test_py3_9
+channels:
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+  - https://repo.anaconda.com/pkgs/msys2
+dependencies:
+  - python=3.9
+  - nltk
+  - gensim
+prefix: C:\Users\nicky\miniconda3\envs\dacy_env_test_py3_9
