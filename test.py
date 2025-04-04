@@ -10,30 +10,24 @@ import seaborn as sns
 import re
 from unidecode import unidecode
 from sklearn.pipeline import Pipeline
+import os
 
-# --- Enhanced Data Loading ---
-def load_data(path, file_type='csv'):
-    """Load data with improved error handling and automatic encoding detection"""
-    try:
-        if file_type == 'csv':
-            return pd.read_csv(
-                path,
-                sep=';',
-                engine='python',
-                on_bad_lines='warn',  # Better for debugging than 'skip'
-                encoding='utf-8-sig',
-                dtype=str
-            )
-        elif file_type == 'excel':
-            return pd.read_excel(path, engine='openpyxl')
-        raise ValueError("Unsupported file type. Use 'csv' or 'excel'.")
-    except Exception as e:
-        print(f"Error loading {path}: {str(e)}")
-        return pd.DataFrame()
+def load_data(path):
+    return pd.read_csv(
+        path,
+        sep=';',
+        engine='python',
+        on_bad_lines='skip',
+        encoding='latin1',  # Tilføj eksplicit tegnsæt
+        dtype='unicode'     # Undgå automatisk typegæt
+    )
 
-# Load data
-df1 = load_data(r'C:\Users\carle\Desktop\python_work\p2\G5P2\Arbejdsordre med afskrevet reservedele.xlsx', file_type='excel')
-df2 = load_data(r'C:\Users\carle\Desktop\python_work\p2\G5P2\Alle Arbejdsordre.xlsx', file_type='excel')
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script's directory
+file_path = os.path.join(script_dir, 'Arbejdsordre med afskrevet reservedele.csv')
+file2_path = os.path.join(script_dir, 'Alle Arbejdsordre.csv')
+
+df1 = load_data(file_path)
+df2 = load_data(file2_path)
 
 # --- Robust Data Cleaning ---
 def clean_text(text):
@@ -44,22 +38,16 @@ def clean_text(text):
     return text.strip()
 
 # Clean column names
-for df in [df1, df2]:
-    df.columns = [clean_text(col) for col in df.columns]
+#for df in [df1, df2]:
+#    df.columns = [clean_text(col) for col in df.columns]
 
 # --- Enhanced Merging ---
 # Check for common columns before merge
 common_cols = list(set(df1.columns) & set(df2.columns))
 print(f"Common columns for merging: {common_cols}")
 
-merged_df = pd.merge(
-    df2, 
-    df1, 
-    left_on='Work Order Number', 
-    right_on='Work Order', 
-    how='inner',
-    validate='one_to_one'  # Ensure expected merge behavior
-)
+merged_df = pd.merge(df2, df1, left_on='Work Order Number', right_on='Work Order', how='inner')
+
 
 # --- Improved Categorization ---
 CATEGORIES = {
