@@ -1,0 +1,19 @@
+things to do:
+	-eliminer redundant samt tomme rækker, baseret på Instructions column																							Tjek			
+	-lowercase metode til alle ord i bag-of-words																													Tjek
+	-del datasættet op i chunks, så dacy ikke kører på hele datasættet på én gang																					(Tjek)
+	-tjek om det er muligt at optimere nlp_dansk løkken i dacy_bow.py, så det ikke skal tage en time at træne	
+			-slå lemmatization og pos-tagging sammen og juster pipe	(multi-proc is a no-go (for meget hukommelse)) 													Tjek
+	-gør evt brug af stop-words
+	-gør evt brug af tf-idf
+	-bliv klogere på hvordan gensims Lda-model arbejder med inference at topic distribution på nye documenter														Tjek
+	-efterse Bentax data for at se om navne- og udsagnsord i virkeligheden er dem der fortæller mest og fejl
+	-analyser topics og deres bag-of-words, for at se hvor godt de stemmer overens med fejlkategorier eller potentielt individuelle reservedele
+	-extract features, som er topic distribution per document
+	-label data efter overordnede fejl-kategorier
+	-træn en supervised model (e.g. random forest), som skal predicte fejl-kategori baseret på features
+
+for dele:
+	-rinse and repeat for hele processen startende fra lda, men denne gang kører du en ny model for hvert parts-kategori, for at finde underkategorier
+	-trænes for at se om der er mønstre i en kategori for de individuelle parts (hvor meget data er der?)
+	-hvis der kan finds gode latent topics, så kan de igen bruges til at udtrække features til at træne en supervised model, der denne gang kan identificere dele
