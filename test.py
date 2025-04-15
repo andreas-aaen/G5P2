@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import silhouette_score
 from nltk.corpus import stopwords
 import matplotlib.pyplot as plt
@@ -68,7 +68,7 @@ def categorize_spare_part(name):
     return 'Andet'
 
 # --- Enhanced Feature Engineering ---
-danish_stopwords = set(stopwords.words('danish')) | {'del', 'nummer', 'nr'}
+danish_stopwords = list(set(stopwords.words('danish')) | {'del', 'nummer', 'nr'})
 
 # Create pipeline for text processing
 text_pipeline = Pipeline([
@@ -78,7 +78,7 @@ text_pipeline = Pipeline([
         max_df=0.85,  # Ignore overly common terms
         min_df=2      # Ignore rare terms
     )),
-    ('pca', PCA(n_components=0.95))  # Dimensionality reduction
+('svd', TruncatedSVD(n_components=100))  # fx 100 komponenter
 ])
 
 # --- Optimal Cluster Determination ---
@@ -110,11 +110,11 @@ def find_optimal_clusters(data, max_k=10):
 # --- Main Execution ---
 if __name__ == "__main__":
     # Data preparation
-    filtered_df = merged_df.dropna(subset=['name', 'instructions']).copy()
-    filtered_df['hovedkategori'] = filtered_df['name'].apply(categorize_spare_part)
+    filtered_df = merged_df.dropna(subset=['Name', 'Instructions']).copy()
+    filtered_df['hovedkategori'] = filtered_df['Name'].apply(categorize_spare_part)
     
     # Feature transformation
-    X_transformed = text_pipeline.fit_transform(filtered_df['name'])
+    X_transformed = text_pipeline.fit_transform(filtered_df['Name'])
     
     # Cluster optimization
     find_optimal_clusters(X_transformed)
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     filtered_df['cluster'] = kmeans.fit_predict(X_transformed)
     
     # Add cluster centers for interpretation
-    cluster_centers = text_pipeline.named_steps['pca'].inverse_transform(kmeans.cluster_centers_)
+    cluster_centers = text_pipeline.named_steps['svd'].inverse_transform(kmeans.cluster_centers_)
     terms = text_pipeline.named_steps['tfidf'].get_feature_names_out()
     
     print("\nTop terms per cluster:")
