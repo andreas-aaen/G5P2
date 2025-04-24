@@ -13,6 +13,10 @@ things to do:
 	-label data efter overordnede fejl-kategorier
 	-træn en supervised model (e.g. random forest), som skal predicte fejl-kategori baseret på features
 
+	-sorter merged_df så kun rækker med Thermoplan produkter indgår
+	-rens datasæt, så supplier item number kommer til at stemme overens med vores oversigt over dele																Tjek
+	-find ud af hvad der skal gøres med dele, som optrædder i flere modul-kategorier
+
 ===========================================================================================================================================================================
 ***************************************************************************************************************************************************************************
 ===========================================================================================================================================================================

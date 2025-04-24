@@ -58,6 +58,7 @@ print(lda_model.print_topics())
 print(f'\n\n{lda_model.get_document_topics(corpus_tfidf[0], minimum_probability=0.0)}')
 
 data_for_training = []
+i = 0
 for doc in corpus_tfidf:
     topic_distribution = lda_model.get_document_topics(doc, minimum_probability=0.0)
 
@@ -65,7 +66,9 @@ for doc in corpus_tfidf:
     for topic_id, probability in topic_distribution:
         topic_vec[topic_id] = float(probability)
 
+    #data_for_training.append({'topic_distribution': topic_vec, 'module_type': nouns_verbs_only[i]['module_type']})
     data_for_training.append({'topic_distribution': topic_vec})
+    i += 1
 
 with open('document_topic_data.json', 'w') as file:
     json.dump(data_for_training, file, indent=4)

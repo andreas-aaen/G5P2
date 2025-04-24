@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import json
+import pickle
 from collections import Counter
 import re
 import pandas as pd
@@ -13,13 +14,13 @@ TERM_APPEARANCES = 2
 CHUNK_SIZE = 100
 
 # Trin 1: Indlæs data
-def load_data(path):
+def load_data(path, enc='latin1'):
     return pd.read_csv(
         path,
         sep=';',
         engine='python',
         on_bad_lines='skip',
-        encoding='latin1',
+        encoding=enc,
         dtype='unicode'
     )
 
@@ -42,9 +43,12 @@ def count_nested_list_elements(list_of_lists):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, 'Arbejdsordre med afskrevet reservedele.csv')
 file2_path = os.path.join(script_dir, 'Alle Arbejdsordre.csv')
+bw4_parts_path = os.path.join(script_dir, 'reservedelslister/bw4/bw4.csv')
 
 df1 = load_data(file_path)
 df2 = load_data(file2_path)
+bw4_parts = load_data(bw4_parts_path, enc = 'utf-8-sig')
+merged_df_pickle_path = os.path.join(script_dir, "augment_document_topic_data/merged_df_cached.pkl")
 
 #Indlæser model "large" af dacy-library i hukommelsen
 nlp_dansk = dacy.load('large', disable=['ner'])
@@ -53,12 +57,24 @@ nlp_dansk = dacy.load('large', disable=['ner'])
 # Fjern duplikerede reset_index kald
 merged_df = pd.merge(df2, df1, left_on='Work Order Number', right_on='Work Order', how='inner')
 
+# Fjern trailing 'R', så vi kan lave lookup i vores parts-lists dokumenter
+print(f"værdier før:")
+print(merged_df['Supplier Item number (Product) (Product)'].head(20))
+merged_df['Supplier Item number (Product) (Product)'] = merged_df['Supplier Item number (Product) (Product)'].apply(lambda x: re.sub(r'R$', '', x) if pd.notna(x) else x)
+print(f"værdier efter:")
+print(merged_df['Supplier Item number (Product) (Product)'].head(20))
+
 # Fjern kun rækker hvor både Name og Instructions mangler én gang
 filtered_df = merged_df.dropna(subset=['Name', 'Instructions']).copy()
 
+# Fjern rækker der ikke indeholder 'BW3' eller 'BW4' i primær asset category
+thermoplan_filter = filtered_df['Primær Asset Kategori (Work Order) (Work Order)'].str.contains('BW3|BW4', na=False)
+filtered_df = filtered_df[thermoplan_filter].copy()
+print(len(filtered_df))
+
 # Fjerner alle undtagen første instans af duplikerede fejlbeskrivelser fra listen over dokumenter
 filtered_df_copy = filtered_df.drop_duplicates(subset=['Instructions (Work Order) (Work Order)'])
-filtered_df_copy = filtered_df_copy.loc[:CHUNK_SIZE, ]
+filtered_df_copy = filtered_df_copy.loc[: CHUNK_SIZE, ]
 
 # En liste af instruktionerne der bliver brugt til bow's før teksten bliver transformeret
 pre_trans_instructions = filtered_df_copy['Instructions (Work Order) (Work Order)'].tolist()
@@ -86,6 +102,9 @@ index_in_mdf = []
 for instruction in pre_trans_instructions:
     index_in_mdf.append(merged_df['Instructions (Work Order) (Work Order)'].tolist().index(instruction))
 desc_w_index = [(index_in_mdf[index], item) for index, item in enumerate(texts)]
+
+with open(merged_df_pickle_path, 'wb') as f:
+        pickle.dump(merged_df, f)
 
 # Dumper beskrivelser (samt index til originale df) fra alle de dokumenter hvorfra der bliver dannet bow's til en liste i en json-fil.
 with open('docs_to_label.json', 'w') as file:
