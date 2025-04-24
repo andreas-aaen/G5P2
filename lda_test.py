@@ -2,6 +2,7 @@ import os
 from collections import Counter
 import pandas as pd
 import dacy
+print("DaCy installed successfully!")
 from gensim import models
 
 # Skal betragtes som immutable (constants)(hyperparametre)
@@ -27,7 +28,7 @@ def count_nested_list_elements(list_of_lists):
     count = 0
     for bag_of_words in list_of_lists:
         for word in bag_of_words:
-            count += 1
+            count += 1 
     print(count)
 
 #Boiler-plate for at sætte path object til data-filerne, og give dem et variabel-navn
