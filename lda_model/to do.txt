@@ -16,6 +16,8 @@ things to do:
 	-sorter merged_df så kun rækker med Thermoplan produkter indgår
 	-rens datasæt, så supplier item number kommer til at stemme overens med vores oversigt over dele																Tjek
 	-find ud af hvad der skal gøres med dele, som optrædder i flere modul-kategorier
+	-flyt funktionalitet der opdaterer 'document_topic_data.json' til sin egen fil, væk fra dacy_bow.py																Tjek
+	-indlæs og sammenlign med alle parts-lister
 
 ===========================================================================================================================================================================
 ***************************************************************************************************************************************************************************

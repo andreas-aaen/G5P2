@@ -11,7 +11,7 @@ from path_plus_word_counts import bow_create_path, save_bow, load_bow, create_wo
 
 # Skal betragtes som immutable (constants)(hyperparametre)
 TERM_APPEARANCES = 2
-CHUNK_SIZE = 100
+CHUNK_SIZE = 22_000
 
 # Trin 1: Indlæs data
 def load_data(path, enc='latin1'):
@@ -54,27 +54,46 @@ merged_df_pickle_path = os.path.join(script_dir, "augment_document_topic_data/me
 nlp_dansk = dacy.load('large', disable=['ner'])
 
 # Trin 2: Dataforberedelse
-# Fjern duplikerede reset_index kald
+# Fjern duplikerede, reset_index kald
 merged_df = pd.merge(df2, df1, left_on='Work Order Number', right_on='Work Order', how='inner')
+print(f"Antal rækker: {len(merged_df['Supplier Item number (Product) (Product)'])}") #Antal
 
 # Fjern trailing 'R', så vi kan lave lookup i vores parts-lists dokumenter
 print(f"værdier før:")
 print(merged_df['Supplier Item number (Product) (Product)'].head(20))
 merged_df['Supplier Item number (Product) (Product)'] = merged_df['Supplier Item number (Product) (Product)'].apply(lambda x: re.sub(r'R$', '', x) if pd.notna(x) else x)
+print(f"Antal rækker: {len(merged_df['Supplier Item number (Product) (Product)'])}") #Antal
 print(f"værdier efter:")
 print(merged_df['Supplier Item number (Product) (Product)'].head(20))
 
-# Fjern kun rækker hvor både Name og Instructions mangler én gang
-filtered_df = merged_df.dropna(subset=['Name', 'Instructions']).copy()
+# Filtrerer df så kun rækker hvor formattet på item number matcher formattet i udleveret datablad
+print(f"\nAntal rækker før filtrering på supplier item number: {len(merged_df)}")
+condition_not_na = merged_df['Supplier Item number (Product) (Product)'].notna()
+condition_is_digit = merged_df['Supplier Item number (Product) (Product)'].str.isdigit()
+condition_is_len_6 = merged_df['Supplier Item number (Product) (Product)'].str.len() == 6
+row_to_keep = condition_not_na & condition_is_digit & condition_is_len_6
+merged_df = merged_df[row_to_keep].copy()
+print(f"\nAntal rækker efter filtrering på supplier item number: {len(merged_df)}")
+print(f"Antal rækker: {len(merged_df['Supplier Item number (Product) (Product)'])}") #Antal
+
+# Gemmer en pickle-fil af den endelige version af merged_df 
+with open(merged_df_pickle_path, 'wb') as f:
+        pickle.dump(merged_df, f)
+
+# Fjern kun rækker hvor enten asset category eller instructions mangler
+filtered_df = merged_df.dropna(subset=['Primær Asset Kategori (Work Order) (Work Order)', 'Instructions (Work Order) (Work Order)']).copy()
+print(f"Antal rækker: {len(filtered_df['Supplier Item number (Product) (Product)'])}") #Antal
 
 # Fjern rækker der ikke indeholder 'BW3' eller 'BW4' i primær asset category
-thermoplan_filter = filtered_df['Primær Asset Kategori (Work Order) (Work Order)'].str.contains('BW3|BW4', na=False)
+thermoplan_filter = filtered_df['Primær Asset Kategori (Work Order) (Work Order)'].str.contains('BW4', na=False)
 filtered_df = filtered_df[thermoplan_filter].copy()
 print(len(filtered_df))
+print(f"Antal rækker: {len(filtered_df['Supplier Item number (Product) (Product)'])}") #Antal
 
 # Fjerner alle undtagen første instans af duplikerede fejlbeskrivelser fra listen over dokumenter
 filtered_df_copy = filtered_df.drop_duplicates(subset=['Instructions (Work Order) (Work Order)'])
-filtered_df_copy = filtered_df_copy.loc[: CHUNK_SIZE, ]
+print(f"Antal rækker: {len(filtered_df_copy['Supplier Item number (Product) (Product)'])}") #Antal
+filtered_df_copy = filtered_df_copy.loc[ : , ]
 
 # En liste af instruktionerne der bliver brugt til bow's før teksten bliver transformeret
 pre_trans_instructions = filtered_df_copy['Instructions (Work Order) (Work Order)'].tolist()
@@ -83,10 +102,12 @@ pre_trans_instructions = filtered_df_copy['Instructions (Work Order) (Work Order
 filtered_df_copy['Instructions (Work Order) (Work Order)'] = filtered_df_copy['Instructions (Work Order) (Work Order)'].apply(clean_whitespace)
 
 # Bruger dacy-Large til at filtrere dokumenterne ned til en liste af lister
-# Hver nestede liste består kun af navne- og udsagnsord
+# Hver nestede liste (BOW) består kun af navne- og udsagnsord
 desired_tags = ['NOUN', 'VERB']
 texts = filtered_df_copy['Instructions (Work Order) (Work Order)'].tolist()
+print(len(texts)) #Længde
 nouns_verbs_only = [[token.lemma_.lower() for token in nlp_dansk(doc) if token.pos_ in desired_tags] for doc in texts]
+print(len(nouns_verbs_only)) #Længde
 '''for document in filtered_df_copy['Instructions (Work Order) (Work Order)']:
     doc = nlp_dansk(document)
     temp = []
@@ -98,13 +119,15 @@ nouns_verbs_only = [[token.lemma_.lower() for token in nlp_dansk(doc) if token.p
         nouns_verbs_only.append(temp)'''
 
 # Mapper beskrivelser fra data der bruges til bow's til deres korresponderende første index i det originale df.
-index_in_mdf = []
-for instruction in pre_trans_instructions:
-    index_in_mdf.append(merged_df['Instructions (Work Order) (Work Order)'].tolist().index(instruction))
-desc_w_index = [(index_in_mdf[index], item) for index, item in enumerate(texts)]
-
-with open(merged_df_pickle_path, 'wb') as f:
-        pickle.dump(merged_df, f)
+desc_w_index = []
+if len(texts) != len(filtered_df_copy):
+    print("Fejl: længden på 'texts' matcher ikke længden på 'filtered_df_copy'")
+    print(f"Længden på texts: {len(texts)}\nLængden på filtered_df_copy: {len(filtered_df_copy)}")
+for i in range(len(filtered_df_copy)):
+    actual_df_index_label_numpy = filtered_df_copy.index[i]
+    actual_df_index_label_pyint = int(actual_df_index_label_numpy)
+    text_content_for_json = texts[i]
+    desc_w_index.append((actual_df_index_label_pyint, text_content_for_json))
 
 # Dumper beskrivelser (samt index til originale df) fra alle de dokumenter hvorfra der bliver dannet bow's til en liste i en json-fil.
 with open('docs_to_label.json', 'w') as file:
@@ -126,8 +149,7 @@ word_counts = create_word_counts()
 # - hvor kun termer der optræder mere end TERM_APPEARANCES i alle dokumenter bliver gemt.
 for i, bag_of_words in enumerate(nouns_verbs_only):
     for word in enumerate(bag_of_words):
-        nouns_verbs_only[i] = [word for word in bag_of_words 
-            if word_counts[word] >= TERM_APPEARANCES]
+        nouns_verbs_only[i] = [word for word in bag_of_words if word_counts[word] >= TERM_APPEARANCES]
 
 # Brugt til at se hvor mange termer den ovenstående optimering gav 
 count_nested_list_elements(nouns_verbs_only)
